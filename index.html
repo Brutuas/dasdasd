@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Менеджер приема лекарств</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        .notification-bell {
+            position: relative;
+        }
+        .notification-bell::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .notification-bell.active::after {
+            opacity: 1;
+        }
+        .pill-card {
+            transition: all 0.3s ease;
+        }
+        .pill-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .day-selector {
+            transition: all 0.2s ease;
+        }
+        .day-selector:hover {
+            transform: scale(1.05);
+        }
+        .day-selector.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-800 flex items-center">
+                <i class="fas fa-pills mr-3"></i> Менеджер лекарств
+            </h1>
+            <div class="flex items-center space-x-4">
+                <button id="notificationBtn" class="notification-bell p-2 rounded-full bg-white shadow-md">
+                    <i class="fas fa-bell text-gray-600 text-xl"></i>
+                </button>
+                <button id="settingsBtn" class="p-2 rounded-full bg-white shadow-md">
+                    <i class="fas fa-cog text-gray-600 text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Add Medication Form -->
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-blue-700">Добавить лекарство</h2>
+                <form id="medicationForm" class="space-y-4">
+                    <div>
+                        <label for="medName" class="block text-sm font-medium text-gray-700 mb-1">Название лекарства</label>
+                        <input type="text" id="medName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Например, Аспирин" required>
+                    </div>
+                    
+                    <div>
+                        <label for="medDosage" class="block text-sm font-medium text-gray-700 mb-1">Дозировка</label>
+                        <input type="text" id="medDosage" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Например, 500 мг" required>
+                    </div>
+                    
+                    <div>
+                        <label for="medTime" class="block text-sm font-medium text-gray-700 mb-1">Время приема</label>
+                        <input type="time" id="medTime" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Дни приема</label>
+                        <div class="grid grid-cols-7 gap-2">
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="0">Пн</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="1">Вт</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="2">Ср</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="3">Чт</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="4">Пт</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="5">Сб</button>
+                            <button type="button" class="day-selector py-2 rounded-full border border-gray-300" data-day="6">Вс</button>
+                        </div>
+                        <input type="hidden" id="selectedDays" value="">
+                    </div>
+                    
+                    <div>
+                        <label for="medNotes" class="block text-sm font-medium text-gray-700 mb-1">Примечания</label>
+                        <textarea id="medNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="Особые указания..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-plus-circle mr-2"></i> Добавить лекарство
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Right Column - Medication List and Calendar -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Today's Medications -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-blue-700">Сегодняшние лекарства</h2>
+                        <span class="text-sm text-gray-500" id="currentDate"></span>
+                    </div>
+                    
+                    <div id="todayMeds" class="space-y-3">
+                        <div class="text-center py-8 text-gray-400" id="noMedsToday">
+                            <i class="fas fa-pills text-4xl mb-2"></i>
+                            <p>На сегодня лекарств не запланировано</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Weekly Calendar -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-blue-700">Недельное расписание</h2>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2 px-3">Лекарство</th>
+                                    <th class="py-2 px-3">Пн</th>
+                                    <th class="py-2 px-3">Вт</th>
+                                    <th class="py-2 px-3">Ср</th>
+                                    <th class="py-2 px-3">Чт</th>
+                                    <th class="py-2 px-3">Пт</th>
+                                    <th class="py-2 px-3">Сб</th>
+                                    <th class="py-2 px-3">Вс</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklySchedule">
+                                <tr class="text-center py-4">
+                                    <td colspan="8" class="py-8 text-gray-400">
+                                        <i class="fas fa-calendar-plus text-4xl mb-2"></i>
+                                        <p>Добавьте лекарства, чтобы увидеть расписание</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notificationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Уведомления</h3>
+                <button id="closeNotificationModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="notificationList" class="space-y-3 max-h-60 overflow-y-auto">
+                <!-- Notifications will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio for notifications -->
+    <audio id="notificationSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"></audio>
+    <audio id="reminderSound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3"></audio>
+
+    <script>
+        // Initialize medications array
+        let medications = JSON.parse(localStorage.getItem('medications')) || [];
+        let selectedDays = [];
+        
+        // DOM elements
+        const currentDateEl = document.getElementById('currentDate');
+        const todayMedsEl = document.getElementById('todayMeds');
+        const noMedsTodayEl = document.getElementById('noMedsToday');
+        const weeklyScheduleEl = document.getElementById('weeklySchedule');
+        const notificationModal = document.getElementById('notificationModal');
+        const notificationBtn = document.getElementById('notificationBtn');
+        const closeNotificationModal = document.getElementById('closeNotificationModal');
+        const notificationList = document.getElementById('notificationList');
+        const notificationSound = document.getElementById('notificationSound');
+        const reminderSound = document.getElementById('reminderSound');
+        const daySelectors = document.querySelectorAll('.day-selector');
+        
+        // Set current date
+        function updateCurrentDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            currentDateEl.textContent = now.toLocaleDateString('ru-RU', options);
+        }
+        
+        // Day selector logic
+        daySelectors.forEach(selector => {
+            selector.addEventListener('click', function() {
+                const day = this.getAttribute('data-day');
+                this.classList.toggle('active');
+                this.classList.toggle('bg-blue-100');
+                this.classList.toggle('text-blue-800');
+                
+                if (this.classList.contains('active')) {
+                    if (!selectedDays.includes(day)) {
+                        selectedDays.push(day);
+                    }
+                } else {
+                    selectedDays = selectedDays.filter(d => d !== day);
+                }
+                
+                document.getElementById('selectedDays').value = selectedDays.join(',');
+            });
+        });
+        
+        // Form submission
+        document.getElementById('medicationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('medName').value;
+            const dosage = document.getElementById('medDosage').value;
+            const time = document.getElementById('medTime').value;
+            const notes = document.getElementById('medNotes').value;
+            
+            if (selectedDays.length === 0) {
+                alert('Пожалуйста, выберите хотя бы один день для приема');
+                return;
+            }
+            
+            const medication = {
+                id: Date.now(),
+                name,
+                dosage,
+                time,
+                days: selectedDays,
+                notes,
+                createdAt: new Date().toISOString()
+            };
+            
+            medications.push(medication);
+            saveMedications();
+            renderMedications();
+            
+            // Reset form
+            this.reset();
+            selectedDays = [];
+            document.getElementById('selectedDays').value = '';
+            daySelectors.forEach(selector => {
+                selector.classList.remove('active', 'bg-blue-100', 'text-blue-800');
+            });
+            
+            // Show success notification
+            showNotification(`Лекарство "${name}" успешно добавлено`, 'success');
+            notificationSound.play();
+        });
+        
+        // Save medications to localStorage
+        function saveMedications() {
+            localStorage.setItem('medications', JSON.stringify(medications));
+        }
+        
+        // Render medications
+        function renderMedications() {
+            renderTodayMeds();
+            renderWeeklySchedule();
+        }
+        
+        // Render today's medications
+        function renderTodayMeds() {
+            const now = new Date();
+            const today = now.getDay() - 1; // Adjust for 0=Monday format
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            const todayMeds = medications.filter(med => 
+                med.days.includes(today.toString())
+            ).sort((a, b) => {
+                const aTime = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
+                const bTime = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
+                return aTime - bTime;
+            });
+            
+            if (todayMeds.length === 0) {
+                noMedsTodayEl.classList.remove('hidden');
+                todayMedsEl.innerHTML = '';
+            } else {
+                noMedsTodayEl.classList.add('hidden');
+                todayMedsEl.innerHTML = '';
+                
+                todayMeds.forEach(med => {
+                    const medTime = parseInt(med.time.split(':')[0]) * 60 + parseInt(med.time.split(':')[1]);
+                    const isUpcoming = medTime > currentTime;
+                    const isNow = Math.abs(medTime - currentTime) < 30;
+                    
+                    const medCard = document.createElement('div');
+                    medCard.className = `pill-card flex items-center justify-between p-4 rounded-lg border ${isNow ? 'border-yellow-400 bg-yellow-50 pulse' : 'border-gray-200 bg-white'}`;
+                    
+                    medCard.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                <i class="fas fa-pills text-blue-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-medium">${med.name}</h3>
+                                <p class="text-sm text-gray-500">${med.dosage} • ${med.time}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="mark-taken p-2 text-green-500 hover:text-green-700" data-id="${med.id}">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                            <button class="delete-med p-2 text-red-500 hover:text-red-700" data-id="${med.id}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    todayMedsEl.appendChild(medCard);
+                    
+                    // Check if it's time to take this medication
+                    if (isNow) {
+                        showReminder(med);
+                    }
+                });
+            }
+            
+            // Add event listeners for newly created buttons
+            document.querySelectorAll('.mark-taken').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    markAsTaken(id);
+                });
+            });
+            
+            document.querySelectorAll('.delete-med').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    deleteMedication(id);
+                });
+            });
+        }
+        
+        // Render weekly schedule
+        function renderWeeklySchedule() {
+            if (medications.length === 0) {
+                weeklyScheduleEl.innerHTML = `
+                    <tr class="text-center py-4">
+                        <td colspan="8" class="py-8 text-gray-400">
+                            <i class="fas fa-calendar-plus text-4xl mb-2"></i>
+                            <p>Добавьте лекарства, чтобы увидеть расписание</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            weeklyScheduleEl.innerHTML = '';
+            
+            medications.forEach(med => {
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                
+                let cells = `
+                    <td class="py-3 px-3 font-medium">${med.name} <span class="text-sm text-gray-500">${med.dosage}</span></td>
+                `;
+                
+                for (let i = 0; i < 7; i++) {
+                    const hasMed = med.days.includes(i.toString());
+                    cells += `
+                        <td class="py-3 px-3">
+                            ${hasMed ? `<span class="inline-block w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center">${med.time}</span>` : ''}
+                        </td>
+                    `;
+                }
+                
+                row.innerHTML = cells;
+                weeklyScheduleEl.appendChild(row);
+            });
+        }
+        
+        // Mark medication as taken
+        function markAsTaken(id) {
+            const medIndex = medications.findIndex(m => m.id === id);
+            if (medIndex !== -1) {
+                if (!medications[medIndex].takenDates) {
+                    medications[medIndex].takenDates = [];
+                }
+                
+                const now = new Date();
+                medications[medIndex].takenDates.push(now.toISOString());
+                saveMedications();
+                
+                showNotification(`Лекарство "${medications[medIndex].name}" отмечено как принятое`, 'success');
+                notificationSound.play();
+                renderTodayMeds();
+            }
+        }
+        
+        // Delete medication
+        function deleteMedication(id) {
+            if (confirm('Вы уверены, что хотите удалить это лекарство?')) {
+                medications = medications.filter(m => m.id !== id);
+                saveMedications();
+                
+                showNotification('Лекарство удалено', 'info');
+                notificationSound.play();
+                renderMedications();
+            }
+        }
+        
+        // Show reminder
+        function showReminder(med) {
+            const now = new Date();
+            const today = now.getDay() - 1; // Adjust for 0=Monday format
+            
+            // Check if already taken today
+            const takenToday = med.takenDates && med.takenDates.some(date => {
+                const d = new Date(date);
+                return d.getDate() === now.getDate() && 
+                       d.getMonth() === now.getMonth() && 
+                       d.getFullYear() === now.getFullYear();
+            });
+            
+            if (!takenToday) {
+                const notification = {
+                    id: Date.now(),
+                    type: 'reminder',
+                    title: 'Время принять лекарство',
+                    message: `Пора принять ${med.dosage} ${med.name} (${med.time})`,
+                    medId: med.id,
+                    timestamp: new Date().toISOString()
+                };
+                
+                showNotification(notification.message, 'reminder');
+                reminderSound.play();
+                
+                // Make notification bell active
+                notificationBtn.classList.add('active');
+            }
+        }
+        
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `p-3 rounded-lg flex items-start ${
+                type === 'success' ? 'bg-green-100 text-green-800' : 
+                type === 'reminder' ? 'bg-yellow-100 text-yellow-800' : 
+                'bg-blue-100 text-blue-800'
+            }`;
+            
+            notification.innerHTML = `
+                <i class="fas ${
+                    type === 'success' ? 'fa-check-circle' : 
+                    type === 'reminder' ? 'fa-bell' : 
+                    'fa-info-circle'
+                } mt-1 mr-3"></i>
+                <div>
+                    <p class="text-sm">${message}</p>
+                    <p class="text-xs opacity-70 mt-1">${new Date().toLocaleTimeString()}</p>
+                </div>
+            `;
+            
+            notificationList.insertBefore(notification, notificationList.firstChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+                if (notificationList.children.length === 0) {
+                    notificationBtn.classList.remove('active');
+                }
+            }, 5000);
+        }
+        
+        // Modal controls
+        notificationBtn.addEventListener('click', () => {
+            notificationModal.classList.remove('hidden');
+        });
+        
+        closeNotificationModal.addEventListener('click', () => {
+            notificationModal.classList.add('hidden');
+        });
+        
+        // Check for medication reminders every minute
+        setInterval(() => {
+            renderTodayMeds();
+        }, 60000);
+        
+        // Initialize
+        updateCurrentDate();
+        renderMedications();
+        
+        // Check immediately if any medications are due
+        setTimeout(() => {
+            renderTodayMeds();
+        }, 1000);
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=Lifeskipper/med" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
